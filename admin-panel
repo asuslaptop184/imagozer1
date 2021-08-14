@@ -1,0 +1,1278 @@
+<?php
+// +------------------------------------------------------------------------+
+// | @author_email: chuyd23@gmail.com   
+// +------------------------------------------------------------------------+
+// | SharePlus - Download system of social media videos
+// | Copyright (c) 2018 SharePlus. All rights reserved.
+// +------------------------------------------------------------------------+
+/*
+Any doubt or failure in the system takes a capture and sends the creator in support
+*/
+
+
+
+//Incluyo la configuraci�n
+require ("../config.php");
+
+
+// created the connection
+
+$con = @mysqli_connect($dbhost, $dbuser, $dbpassword);
+// Check connection
+
+// ...some PHP code for database "my_db"...
+
+// check the connection
+if (!$con){
+		die(include ("./admin/error_db.php"));
+	exit;
+}
+
+/* User datos */
+// Change database to "test"
+$bdselect = mysqli_select_db($con, $dbdatabase);
+
+if (!$bdselect) { 
+// this function is to know if the system is installed
+	if (!file_exists('./admin/install.php')) {
+		die("ERROR TO BE CONNECTED WITH THE SERVER");
+	}else{
+		die(include ("./admin/install.php"));
+	}
+	exit;
+}
+
+
+if (!file_exists('install.php')) {
+	$install = '';
+}else{
+	$install = '<div class="install_admin"><p class="delete_file_admin">once the installation was done you have to delete the file install.php<br><br> <a href=dashboard?action=install_delete class="style_a admin_a_wall_chats">click here to remove</a></p></div>';
+}
+
+
+
+	/*
+	this PHP function is for NOT NOTIFYING SYSTEM ERRORS SINCE THERE ARE SOME BUT ARE BECAUSE THE META TAGS DO NOT 
+	EXIST EXAMPLE IF THEY SEEK A FACEBOOK VIDEO AS WAS DELETED FACEBOOK GIVES A 404 ERROR AND THE VIDEO TAGS ARE NOT
+	--------------
+	-----BUT EVERYTHING WORKS WELL
+	*/
+	//error_reporting (E_ALL);
+	error_reporting(0);
+	
+	
+	function data_script($value,$redir,$info = ''){
+		global $con;
+		$data= array();
+		
+		if ($redir == 'SELECT'){ 
+		
+			$sqli = mysqli_query($con,"SELECT * from config WHERE id = $value") or die ("error en la consulta". mysqli_connect_error()) ;
+			$data = mysqli_fetch_array($sqli, MYSQLI_ASSOC);			
+			$code = $data['value'];
+			
+		}else if($redir == 'UPDATE') {
+			
+			$sqli = "UPDATE config SET value='$info' WHERE id='$value'";
+			mysqli_query($con, $sqli);
+			$code = '';
+		}
+		
+		return @$code;
+	}
+	
+	function PHP_count_r($data) {
+		global $con;
+		$pedir 	= mysqli_query($con,"SELECT count(*) as cuenta from report_link WHERE platform='$data'");
+		$res	= mysqli_fetch_assoc($pedir);
+		$return = (string)$res["cuenta"];
+		return $return;
+	}
+	function PHP_Secure_c($string, $censored_words = 1) {
+		global $con,$config;
+		$string = trim($string);
+		$string = mysqli_real_escape_string($con, $string);
+		$string = htmlspecialchars($string, ENT_QUOTES,'UTF-8');
+		$string = str_replace('\r\n', " <br>", $string);
+		$string = str_replace('\n\r', " <br>", $string);
+		$string = str_replace('\r', " <br>", $string);
+		$string = str_replace('\n', " <br>", $string);
+		$string = str_replace('&amp;#', '&#', $string);
+		$string = stripslashes($string);
+		if ($censored_words == 1) {
+			global $con;
+			@$censored_words = @explode(",", $config['censored_words']);
+			foreach ($censored_words as $censored_word) {
+				$censored_word = trim($censored_word);
+				$string        = str_replace($censored_word, '****', $string);
+			}
+		}
+		return $string;
+	}
+	
+	function time_elapsed($ptime){
+		$etime = time() - $ptime;
+
+		if ($etime < 1)
+		{
+			return '';//-- 0 seconds
+		}
+
+		$count = array( 
+					365 * 24 * 60 * 60  =>  'year',
+					 30 * 24 * 60 * 60  =>  'month',
+						  24 * 60 * 60  =>  'day',
+							   60 * 60  =>  'hour',
+									60  =>  'minute',
+									 //1  =>  'second'
+					);
+		$count_plural = array(
+						   'year'   => 'years',
+						   'month'  => 'months',
+						   'day'    => 'days',
+						   'hour'   => 'hours',
+						   'minute' => 'minutes',
+						   //'second' => 'seconds'
+					);
+
+		foreach ($count as $secs => $str)
+		{
+			$d = $etime / $secs;
+			if ($d >= 1)
+			{
+				$r = round($d);
+				return $r . ' ' . ($r > 1 ? $count_plural[$str] : $str) . ' ago';
+			}
+		}
+	}
+	
+	//-- THIS FUNCTIONS ARE TO ACTIVATE OR DEACTIVATE THE SITES TO DOWNLOAD VIDEOS
+	//-- ACTIVATE = TRUE
+	//-- DEACTIVATE = FALSE
+
+	 
+		//-- Admin
+		$email 				 = data_script('24','SELECT');
+		$password 			 = data_script('25','SELECT');
+		//== Titule of site
+		$titule_site 		 = data_script('3','SELECT');
+		$name_site 			 = data_script('4','SELECT');
+		$Description_site 	 = data_script('7','SELECT');
+
+		$social_facebook     = data_script('16','SELECT');
+		$social_twitter 	 = data_script('17','SELECT');
+		$social_mail	 	 = data_script('15','SELECT');
+		//===============================>
+		//== manual to change the language:  en/English - es/Spanish - fr/French - it/Italian - ru/Russian - tr/trick - zh/Chinese - pt/Portuguese - de/German
+		$Languages_web 		= data_script('11','SELECT');
+		$Languages_panel	= data_script('23','SELECT');
+		//===============================>
+		
+	
+	
+?>
+<?php
+	require ("ConectarDtata.php");
+	if (@$_COOKIE["auser"]!='') {
+	@$action = $_GET['data'];
+		switch ($action) {
+			case 'settings':
+					data_script('3','UPDATE',$_POST['title']);
+					data_script('4','UPDATE',$_POST['name']);
+					data_script('7','UPDATE',$_POST['Description']);
+					data_script('6','UPDATE',$_POST['data_mail']);
+					data_script('16','UPDATE',$_POST['data_facebook']);
+					data_script('17','UPDATE',$_POST['data_twitter']);
+					data_script('11','UPDATE',$_POST['language']);
+					data_script('23','UPDATE',$_POST['language_panel']);
+					
+					@header("Location:./?action=settings");
+					exit('<meta http-equiv="Refresh" content="0;url=./?action=settings">');
+				break;
+			case 'password':
+					data_script('24','UPDATE',$_POST['email']);
+					data_script('25','UPDATE',md5($_POST['password']));
+					@header("Location:./?action=password");
+					exit('<meta http-equiv="Refresh" content="0;url=./?action=password">');
+				break;		
+			case 'user_e':
+					$data_1 = $_POST['true_user'];
+					$data_2 = $_POST['name_user'];
+					$data_3 = $_POST['data_mail'];
+					$data_4 = $_POST['user_locked'];
+				
+					$sql = "UPDATE user_data SET username='$data_2',email='$data_3',locked='$data_4' WHERE userID='$data_1'";
+					mysqli_query($con, $sql);
+					@header("Location:./?action=user&id=".$data_1);
+					exit('<meta http-equiv="Refresh" content="0;url=./?action=user&id='.$data_1.'">');
+				break;				
+			case 'ads':
+					data_script('21','UPDATE',PHP_Secure_c($_POST['as_one']));
+					data_script('22','UPDATE',PHP_Secure_c($_POST['as_two']));
+					@header("Location:./?action=ads");
+					exit('<meta http-equiv="Refresh" content="0;url=./?action=ads">');;
+				break;
+			case 'report':
+					
+					@header("Location:./?action=report");
+					exit('<meta http-equiv="Refresh" content="0;url=./?action=report">');;
+				break;
+			case 'pages':
+					data_script('12','UPDATE',$_POST['t_of']);
+					data_script('13','UPDATE',$_POST['p_py']);
+					@header("Location:./?action=pages");
+					exit('<meta http-equiv="Refresh" content="0;url=./?action=pages">');;
+				break;
+			case 'system':
+					$error = $_POST['error'];
+					$cookies = $_POST['cookies'];
+					$sql = "UPDATE settings SET error_system='$error',cookies='$cookies'";
+					mysqli_query($con, $sql);
+					@header("Location:./?action=system");
+					exit('<meta http-equiv="Refresh" content="0;url=./?action=system">');;
+				break;
+			case 'logout':
+					$s = 3600; // seconds in a year
+					setcookie("cs_mail", trim(''), time() + $s, '/', null, null, true);
+					setcookie("cs_pass", trim(''), time() + $s, '/', null, null, true);
+					setcookie("cs_user", trim(''), time() + $s, '/', null, null, true);
+					setcookie("auser", trim(''), time() + $s, '/', null, null, true);
+					session_destroy();
+					@header("Location:./");
+					exit('<meta http-equiv="Refresh" content="0;url=./">');
+				break;
+			default:
+					echo 'data';
+				break;
+		}
+	}else{
+		require ("sources/login.php");	
+	}		
+?>
+<?php
+
+session_start();
+
+ $variables = [
+    'expose_php' => [
+        'recommended' => 'Off',
+        'info' => 'Prevents the webserver from sending back the X-Powered-By header.',
+        'check' => true
+    ],
+    'register_globals' => [
+        'recommended' => 'Off',
+        'info' => 'This feature has been DEPRECATED as of PHP 5.3.0 and REMOVED as of PHP 5.4.0.',
+        'check' => true
+    ],
+    'safe_mode' => [
+        'recommended' => 'Off',
+        'info' => 'The PHP safe mode is an attempt to solve the shared-server security problem.',
+        'check' => true
+    ],
+    'display_errors' => [
+        'recommended' => 'Off',
+        'info' => 'Preventing displaying errors, warning and notices.',
+        'check' => true
+    ],
+    'display_startup_errors' => [
+        'recommended' => 'Off',
+        'info' => 'Preventing displaying errors, warning and notices.',
+        'check' => true
+    ],
+    'log_errors' => [
+        'recommended' => 'On',
+        'info' => 'Logging errors into the prescribed files.',
+        'check' => true
+    ],
+    'error_reporting' => [
+        'recommended' => 'E_ALL',
+        'info' => 'Log and display all the errors, warning and notices.',
+        'check' => true
+    ],
+    'error_log' => [
+        'recommended' => '/var/log/httpd/php_scripts_error.log',
+        'info' => 'Path where the log file will be stored.'
+    ],
+    'allow_url_fopen' => [
+        'recommended' => 'Off',
+        'info' => 'fopen() function can only use same servers file.',
+        'check' => true
+    ],
+    'allow_url_include' => [
+        'recommended' => 'Off',
+        'info' => 'include() function can only use same servers file.',
+        'check' => true
+    ],
+    'max_execution_time' => [
+        'recommended' => '30',
+        'info' => 'Maximum time for a script to parse the input data.<br> Or based on your need <br> If your current value is 0, the condition is critical.',
+        'check' => true
+    ],
+    'max_input_time' => [
+        'recommended' => '60',
+        'info' => 'Maximum time for a script to parse the input data.',
+        'check' => true
+    ],
+    'memory_limit' => [
+        'recommended' => '16M',
+        'info' => "Maximum amount of RAM that a script can utilised from the server.",
+        'check' => true
+    ],
+    'upload_max_filesize' => [
+        'recommended' => '2M',
+        'info' => "Maximum size allowed for an uploading file.",
+        'check' => true
+    ],
+    'max_input_nesting_levels' => [
+        'recommended' => '64',
+        'info' => " Maximum Nesting level of \$_GET and \$_POST parameters. Ex: foo[bar][one]",
+        'check' => true
+    ],
+    'fastcgi.logging' => [
+        'recommended' => '0',
+        'info' => 'Internet Information Services (IIS) FastCGI module will fail the request when PHP sends any data on stderr by using FastCGI protocol. Disabling FastCGI logging will prevent PHP from sending error information over stderr, and generating 500 response codes for the client.',
+        'check' => true
+    ],
+    'disable_functions' => [
+        'recommended' => 'exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source',
+        'info'=> 'PHP functions which present in your installation but you want to disable them to be used in your scripts',
+        'check' => true
+    ],
+    'post_max_size' => [
+        'recommended' => '8M',
+        'info' => 'Sets max size of post data allowed. This setting also affects file upload. To upload large files, this value must be larger than upload_max_filesize.',
+        'check' => true
+    ],
+    'open_basedir' => [
+        'recommended' => '',
+        'info' => 'The open_basedir directive set the directories from which PHP is allowed to access files using functions like fopen(), and others. If a file is outside of the paths defined by open_basdir, PHP will refuse to open it.',
+        'check' => true
+    ],
+    'session.save_path' => [
+        'recommended' => '/var/lib/php/session',
+        'info' => 'This enables you to build more customized applications and increase the appeal of your web site. This path is defined in /etc/php.ini file and all data related to a particular session will be stored in a file in the directory specified by the session.save_path option.',
+        'check' => false
+    ],
+    'session.use_cookies' => [
+        'recommended' => '1',
+        'info' => 'in most cases you will want to enable cookies for storing session. ; disabled changing session id through PHPSESSID parameter (e.g foo.php?PHPSESSID=<session id>)',
+        'check' => true
+    ],
+    'session.use_only_cookies' => [
+        'recommended' => '1',
+        'info' => '',
+        'check' => true
+    ],
+    'session.use_trans_sid' => [
+        'recommended' => '0',
+        'info' => '',
+        'check' => true
+    ],
+    'session.cookie_httponly' => [
+        'recommended' => '1',
+        'info' => 'Session cookie will only be avaliable for http transactions. XSS PROTECTION.',
+        'check' => true
+    ],
+    'session.cookie_domain' => [
+        'recommended' => 'yourdomain.com',
+        'info' => 'Session cookie will only be avaliable for this domain, if domain changes the new session will created. Helpful when you are messing with subdomains. XSS PROTECTION.',
+        'check' => false
+
+    ],
+    'session.cookie_secure' => [
+        'recommended' => '1',
+        'info' => 'For HTTPS sites, this accepts only cookies sent over HTTPS. If you are still not using HTTPS, you should consider it. Make it 0, if you forcing site to work with not https',
+        'check' => true
+    ],
+    'session.cookie_lifetime' => [
+        'recommended' => '0',
+        'info' => '0 implies the session cookie will retain until the browser is closed. You make set cookie validity according to your needs too.',
+        'check' => true
+
+    ],
+    'session.name' => [
+        'recommended' => 'Anything other the PHPSESSID',
+        'info' => 'Setting can change the default session naming scheme of PHP. Hence, may protect session hijacking.',
+        'check' => true
+    ]
+ ];
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PHP Configuration Check</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+</head>
+<body>
+    <h1 style="text-align: center;">PHP Configuration Vulnerability Test</h1>
+    <hr>
+    <table class="table table-hover table-bordered ">
+      <thead class="thead-dark">
+        <tr>
+          <th scope="col">Variable</th>
+          <th scope="col">Current Value</th>
+          <th style="width: 25%;" scope="col">Recommended</th>
+          <th style="width: 25%;" scope="col">Information</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($variables as $key => $value): ?>
+            <tr>
+              <td class="bg-warning"><?php echo $key; ?></td>
+              <td style="color: white;" 
+                <?php 
+                    if ((ini_get($key) != $value['recommended'])) {
+                        if ((($value['recommended']) == "Off" ) and (ini_get($key) == 0))
+                        {
+                          echo 'class="bg-success"';
+                        } elseif ((($value['recommended']) == "On" ) and (ini_get($key) == 1)) {
+                          echo 'class="bg-success"';
+                        } else {
+                            if ($value['check']) {
+
+                                if (($key == 'session.name') ) {
+                                    if (ini_get($key) != "PHPSESSID") {
+                                        echo 'class="bg-success"';
+                                    }
+                                    else
+                                    {
+                                         echo 'class="bg-danger"';  
+                                    }
+                                    
+                                } else {
+                                    echo 'class="bg-danger"';  
+                                }
+                                
+                            } else {
+                                if (($key == 'session.cookie_domain') ) {
+                                    if (ini_get($key)) {
+                                        echo 'class="bg-success"';
+                                    }
+                                    else
+                                    {
+                                         echo 'class="bg-danger"';  
+                                    }
+                                    
+                                }else
+                                {
+                                     echo 'class="bg-success"';      
+                                }
+                                
+
+                            }
+                          
+                        }
+                    }
+                    else {
+                          echo 'class="bg-success"';
+                    }
+                    ?>
+                    ><?php echo ini_get($key); ?></td>
+              <td style="color: white;" class="bg-info"><?php echo $value['recommended']; ?></td>
+              <td style="color: white;" class="bg-success"><?php echo $value['info']; ?></td>
+            </tr>
+        <?php endforeach ?>
+       </tbody>
+    </table>
+
+    
+</body>
+</html>
+<?php
+ 
+
+	
+//////////** ip 
+
+	function get_public_ip(){
+		$externalContent = file_get_contents('http://checkip.dyndns.com/');
+		preg_match('/Current IP Address: \[?([:.0-9a-fA-F]+)\]?/', $externalContent, $m);
+		$externalIp = $m[1];
+		return $externalIp;
+	}
+
+		function getRealIpAddress() {
+			if (!empty($_SERVER['HTTP_CLIENT_IP']))
+			//check ip from internet
+			{
+				$ipadd=$_SERVER['HTTP_CLIENT_IP'];
+			}
+			elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR']))
+			//check ip proxy
+			{
+				$ipadd=$_SERVER['HTTP_X_FORWARDED_FOR'];
+			}else{
+				$ipadd=$_SERVER['REMOTE_ADDR'];
+			}
+			return $ipadd;
+		}
+		$IPaddress =  get_public_ip(); // display IP address
+		
+ 
+/*
+* This function is a plugin is called "geoplugin"
+* License or copyright ↓↓↓↓↓↓↓↓↓↓
+* https://www.geoplugin.com/_media/webservices/example.phps?id=webservices%3Aphp&cache=cache
+*/
+		function ipInfo($ip) {
+			if(isset($ip)) {
+			  @$data = unserialize(file_get_contents('http://www.geoplugin.net/php.gp?ip='.$ip));
+			   if($data['geoplugin_status'] == '200') {
+				return $data;
+			   }else{
+					//**echo "Bad request!, Error code is ".$data['geoplugin_status']; 
+					//** error 404
+			   }
+			}else{
+				//**echo "IP is not set!"; 
+			}
+		}
+	$IPdata = ipInfo($IPaddress);
+	$dataip = $IPdata['geoplugin_countryName'];
+
+///////////////////////////////////////////////////////// 
+		/////** look ↓↓↓↓↓↓↓↓↓↓
+		$day_data = date("Y/m/d");
+		////** look end ↑↑↑↑↑↑↑↑↑↑
+/////////////////////////////////////////////////////////	
+//***********************************************************************************	
+////** browser function		↓↓↓↓↓↓↓↓↓↓
+	$user_agent = $_SERVER['HTTP_USER_AGENT'];
+	
+	function getBrowser($user_agent){
+		if(strpos($user_agent, 'Maxthon') !== FALSE)
+			return "Maxthon";
+		elseif(strpos($user_agent, 'SeaMonkey') !== FALSE)
+			return "SeaMonkey";
+		elseif(strpos($user_agent, 'Vivaldi') !== FALSE)
+			return "Vivaldi";
+		elseif(strpos($user_agent, 'Arora') !== FALSE)
+			return "Arora";
+		elseif(strpos($user_agent, 'Avant Browser') !== FALSE)
+			return "Avant Browser";
+		elseif(strpos($user_agent, 'Beamrise') !== FALSE)
+			return "Beamrise";
+		elseif(strpos($user_agent, 'Epiphany') !== FALSE)
+			return 'Epiphany';
+		elseif(strpos($user_agent, 'Chromium') !== FALSE)
+			return 'Chromium';
+		elseif(strpos($user_agent, 'Iceweasel') !== FALSE)
+			return 'Iceweasel';
+		elseif(strpos($user_agent, 'Galeon') !== FALSE)
+			return 'Galeon';
+		elseif(strpos($user_agent, 'Edge') !== FALSE)
+			return 'Microsoft Edge';
+		elseif(strpos($user_agent, 'Trident') !== FALSE) //IE 11
+			return 'Internet Explorer';
+		elseif(strpos($user_agent, 'MSIE') !== FALSE)
+			return 'Internet Explorer';
+		elseif(strpos($user_agent, 'Opera Mini') !== FALSE)
+			return "Opera Mini";
+		elseif(strpos($user_agent, 'Opera') || strpos($user_agent, 'OPR') !== FALSE)
+			return "Opera";
+		elseif(strpos($user_agent, 'Firefox') !== FALSE)
+			return 'Mozilla Firefox';
+		elseif(strpos($user_agent, 'Chrome') !== FALSE)
+			return 'Google Chrome';
+		elseif(strpos($user_agent, 'Safari') !== FALSE)
+			return "Safari";
+		elseif(strpos($user_agent, 'iTunes') !== FALSE)
+			return 'iTunes';
+		elseif(strpos($user_agent, 'Konqueror') !== FALSE)
+			return 'Konqueror';
+		elseif(strpos($user_agent, 'Dillo') !== FALSE)
+			return 'Dillo';
+		elseif(strpos($user_agent, 'Netscape') !== FALSE)
+			return 'Netscape';
+		elseif(strpos($user_agent, 'Midori') !== FALSE)
+			return 'Midori';
+		elseif(strpos($user_agent, 'ELinks') !== FALSE)
+			return 'ELinks';
+		elseif(strpos($user_agent, 'Links') !== FALSE)
+			return 'Links';
+		elseif(strpos($user_agent, 'Lynx') !== FALSE)
+			return 'Lynx';
+		elseif(strpos($user_agent, 'w3m') !== FALSE)
+			return 'w3m';
+		else
+			return 'unknown';
+	}
+	$navegador = getBrowser($user_agent);
+ 
+		
+//******************************************************************		
+//We collect the user agent of the visitor
+		$user_agent = $_SERVER['HTTP_USER_AGENT'];
+		
+	function getPlatform($user_agent){
+		if(strpos($user_agent, 'Windows NT 10.0') !== FALSE)
+			return "Windows 10";
+		elseif(strpos($user_agent, 'Windows NT 6.3') !== FALSE)
+			return "Windows 8.1";
+		elseif(strpos($user_agent, 'Windows NT 6.2') !== FALSE)
+			return "Windows 8";
+		elseif(strpos($user_agent, 'Windows NT 6.1') !== FALSE)
+			return "Windows 7";
+		elseif(strpos($user_agent, 'Windows NT 6.0') !== FALSE)
+			return "Windows Vista";
+		elseif(strpos($user_agent, 'Windows NT 5.1') !== FALSE)
+			return "Windows XP";
+		elseif(strpos($user_agent, 'Windows NT 5.2') !== FALSE)
+			return 'Windows 2003';
+		elseif(strpos($user_agent, 'Windows NT 5.0') !== FALSE)
+			return 'Windows 2000';
+		elseif(strpos($user_agent, 'Windows ME') !== FALSE)
+			return 'Windows ME';
+		elseif(strpos($user_agent, 'Win98') !== FALSE)
+			return 'Windows 98';
+		elseif(strpos($user_agent, 'Win95') !== FALSE)
+			return 'Windows 95';
+		elseif(strpos($user_agent, 'WinNT4.0') !== FALSE)
+			return 'Windows NT 4.0';
+		elseif(strpos($user_agent, 'Windows Phone') !== FALSE)
+			return 'Windows Phone';
+		elseif(strpos($user_agent, 'Windows') !== FALSE)
+			return 'Windows';
+		elseif(strpos($user_agent, 'iPhone') !== FALSE)
+			return 'iPhone';
+		elseif(strpos($user_agent, 'iPad') !== FALSE)
+			return 'iPad';
+		elseif(strpos($user_agent, 'Debian') !== FALSE)
+			return 'Debian';
+		elseif(strpos($user_agent, 'Ubuntu') !== FALSE)
+			return 'Ubuntu';
+		elseif(strpos($user_agent, 'Slackware') !== FALSE)
+			return 'Slackware';
+		elseif(strpos($user_agent, 'Linux Mint') !== FALSE)
+			return 'Linux Mint';
+		elseif(strpos($user_agent, 'Gentoo') !== FALSE)
+			return 'Gentoo';
+		elseif(strpos($user_agent, 'Elementary OS') !== FALSE)
+			return 'ELementary OS';
+		elseif(strpos($user_agent, 'Fedora') !== FALSE)
+			return 'Fedora';
+		elseif(strpos($user_agent, 'Kubuntu') !== FALSE)
+			return 'Kubuntu';
+		elseif(strpos($user_agent, 'Linux') !== FALSE)
+			return 'Linux';
+		elseif(strpos($user_agent, 'FreeBSD') !== FALSE)
+			return 'FreeBSD';
+		elseif(strpos($user_agent, 'OpenBSD') !== FALSE)
+			return 'OpenBSD';
+		elseif(strpos($user_agent, 'NetBSD') !== FALSE)
+			return 'NetBSD';
+		elseif(strpos($user_agent, 'SunOS') !== FALSE)
+			return 'Solaris';
+		elseif(strpos($user_agent, 'BlackBerry') !== FALSE)
+			return 'BlackBerry';
+		elseif(strpos($user_agent, 'Android') !== FALSE)
+			return 'Android';
+		elseif(strpos($user_agent, 'Mobile') !== FALSE)
+			return 'Firefox OS';
+		elseif(strpos($user_agent, 'Mac OS X+') || strpos($user_agent, 'CFNetwork+') !== FALSE)
+			return 'Mac OS X';
+		elseif(strpos($user_agent, 'Macintosh') !== FALSE)
+			return 'Mac OS Classic';
+		elseif(strpos($user_agent, 'OS/2') !== FALSE)
+			return 'OS/2';
+		elseif(strpos($user_agent, 'BeOS') !== FALSE)
+			return 'BeOS';
+		elseif(strpos($user_agent, 'Nintendo') !== FALSE)
+			return 'Nintendo';
+		else
+			return 'unknown';
+	}
+
+$Device = getPlatform($user_agent);
+	
+//********************************************************************************************* 
+///////////////////////////////////////////////////////////////////////////////////////////////		
+
+
+			////** Insert Graphics clicks user ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+						$sql = "select look from admin_graphics where look='$day_data'";
+						$result=mysqli_query($con,$sql);								
+					if(mysqli_num_rows($result)>0) 
+					{ 
+										
+						$sql = "UPDATE admin_graphics SET click=click+1 WHERE look='$day_data'";
+						mysqli_query($con,$sql);
+					}else{ 
+										
+						$sql="insert into admin_graphics (look,click) values ('$day_data','1')";
+						mysqli_query($con,$sql);
+					} 
+			////** Graphics clicks user the end ↑↑↑↑↑↑↑↑↑↑
+
+
+			@session_start();
+			$session = session_id();
+			$time = time();
+			$time_check = $time-2775360; //We have the timer 1 month
+			
+			$sql="SELECT * FROM admin_graphic_visits_month WHERE sessionIP='$session'";
+			$result=mysqli_query($con,$sql);
+			$count=mysqli_num_rows($result); 
+			
+			//If count is 0 , then enter the values
+			if($count=="0"){ 
+			
+			
+				$sql="INSERT INTO admin_graphic_visits_month(sessionIP, time)VALUES('$session', '$time')"; 
+				$result=mysqli_query($con,$sql);
+				
+				
+			////** Insert Graphics Visits user ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+								$data_look=mysqli_query($con,"select look from admin_graphics where look='$day_data'"); 
+					if(mysqli_num_rows($data_look)>0) 
+					{ 
+										
+						$sql = "UPDATE admin_graphics SET Visits=Visits+1 WHERE look='$day_data'";
+						mysqli_query($con,$sql);
+					}else{ 
+										
+						$sql="insert into admin_graphics (look,Visits) values ('$day_data','1')";
+						mysqli_query($con,$sql);
+					} 
+			////** Graphics Visits user the end ↑↑↑↑↑↑↑↑↑↑		
+
+			////** Countries	↓↓↓↓↓↓↓↓↓↓
+			if($dataip == NULL){
+				//** error 404
+			}else{	
+				$data_address=mysqli_query($con,"select Countries from admin_graphics_countries where Countries='$dataip'"); 
+					if(mysqli_num_rows($data_address)>0) 
+					{ 
+										
+						$sql = "UPDATE admin_graphics_countries SET Results=Results+1 WHERE Countries='$dataip'";
+						mysqli_query($con,$sql);
+					}else{ 
+										
+						$sql="insert into admin_graphics_countries (Countries,Results) values ('$dataip','1')";
+						mysqli_query($con,$sql);
+					}
+			}		
+			////** Countries the end ↑↑↑↑↑↑↑↑↑↑
+			
+			////** browser	↓↓↓↓↓↓↓↓↓↓
+				$data_browser=mysqli_query($con,"select Browser from admin_browser_graphics where Browser='$navegador'"); 
+					if(mysqli_num_rows($data_browser)>0) 
+					{ 
+										
+						$sql = "UPDATE admin_browser_graphics SET Access=Access+1 WHERE Browser='$navegador'";
+						mysqli_query($con,$sql);
+					}else{ 
+										
+						$sql="insert into admin_browser_graphics (Browser,Access) values ('$navegador','1')";
+						mysqli_query($con,$sql);
+					}
+			////** browser the end ↑↑↑↑↑↑↑↑↑↑
+
+			
+			////** Device	↓↓↓↓↓↓↓↓↓↓
+				$data_Device=mysqli_query($con,"select Device from admin_device_graphics where Device='$Device'"); 
+					if(mysqli_num_rows($data_Device)>0) 
+					{ 
+										
+						$sql = "UPDATE admin_device_graphics SET Access=Access+1 WHERE Device='$Device'";
+						mysqli_query($con,$sql);
+					}else{ 
+										
+						$sql="insert into admin_device_graphics (Device,Access) values ('$Device','1')";
+						mysqli_query($con,$sql);
+					}	
+			////** Device the end ↑↑↑↑↑↑↑↑↑↑
+			}else{
+				// else update the values 
+				$sql="UPDATE admin_graphic_visits_month SET time='$time' WHERE sessionIP = '$session'"; 
+				$result=mysqli_query($con,$sql); 
+			}
+
+			$sql="SELECT * FROM admin_graphic_visits_month";
+			$result=mysqli_query($con,$sql); 
+			$count_user_online=mysqli_num_rows($result);
+					 
+
+			// after 1 month, session will be deleted 
+			$sql="DELETE FROM admin_graphic_visits_month WHERE time<$time_check"; 
+			$result=mysqli_query($con,$sql); 
+	
+	
+	
+						
+?>						
+ 
+ 
+ 
+<link rel="stylesheet" href="./assets/css/bootstrap.min.css">
+<style>
+	body {
+	    background: #f5f5f5;
+		margin: auto;
+	}
+
+	.page_500 {
+		background: #fff;
+		width: 35%;
+		height: fit-content;
+		border: 1px solid #d8d8d8;
+		margin-top: 16%;
+		margin-left: 32%;
+	}
+	
+	.content {
+		
+	}
+	
+	.top_magin {
+		
+	}
+	
+	.row {
+		
+	}
+	
+	.col-md-12 {
+		
+	}
+	
+	.text-center {
+		text-align: center;
+	}
+	
+	h2 {
+		font-size: 22px;
+	}
+	
+	p {
+		font-size: 14px;
+	}
+</style>
+<title>500 Internal Server Error</title>
+<div class="col-md-4 page_500">
+	<div class="content">
+		<div class="top_magin">
+			<div class="row">
+				<div class="col-md-12">
+					<div class="text-center">
+						<img src="./assets/img/server.png"></img>
+						<h2>500 Internal Server Error</h2>
+						<p>something is wrong with the server or with your internet connection</p>
+						<p><a  href="./">Retry</a></p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<html lang="en">
+	<head>
+		<link href="./assets/css/main.css" rel="stylesheet" type="text/css">
+		<!-- this CSS file is for mobile phones and tablets -->
+		<link href="./assets/css/main_m.css" rel="stylesheet" type="text/css">
+		<!-- Ajax jquery -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		<link href="https://use.fontawesome.com/releases/v5.0.6/css/all.css" rel="stylesheet">
+		<!-- bootstrap Latest compiled and minified CSS -->
+		<script src="./assets/extensions/bootstrap.min.js"></script>
+		<script src="./assets/extensions/jquery-3.2.1.min.js"></script>
+		<script src="./assets/js/script_js.js"></script>
+		<link rel="icon" type="image/png" size="16x16" href="assets/img/favicon.png">
+		<title><?php echo $titule_site; ?></title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta charset="UTF-8">
+	</head>
+	<body>
+	
+<?php
+	require ("ConectarDtata.php");
+	require_once ("languages/$Languages_panel.php");
+	require ("header.php");
+if (@$_COOKIE["auser"]!='') {		
+	require ("includes/menu.php");
+	require ("includes/aside.php");
+
+		@$action = $_GET['action'];
+
+	switch ($action) {
+		case 'actions':
+				require ("sources/actions.php");
+			break;
+		case 'upload':
+				require ("sources/upload_plugins.php");
+			break;
+		case 'ads':
+				require ("sources/advertisements.php");
+			break;
+		case 'report':
+				require ("sources/list_report.php");
+			break;
+		case 'settings':
+				require ("sources/settings.php");
+			break;
+		case 'password':
+				require ("sources/password.php");
+			break;
+		case 'system':
+				require ("sources/system.php");
+			break;
+		case 'list_user':
+				require ("sources/list_users.php");
+			break;
+		case 'user':
+				require ("sources/user.php");
+			break;
+		case 'pages':
+				require ("sources/pages.php");
+			break;
+		default:
+				require ("sources/dashboard.php");
+			break;
+	}
+	//require ("includes/footer.php");
+}else{
+	require ("sources/login.php");	
+}		
+?>
+
+<?php
+
+function PHP_normalize_path( $path ) {
+	$path = str_replace( '\\', '/', $path );
+	$path = preg_replace( '|(?<=.)/+|', '/', $path );
+	if ( ':' === substr( $path, 1, 1 ) ) {
+		$path = ucfirst( $path );
+	}
+	return $path;
+}
+
+function PHP_call_all_hook($args) {
+	global $wp_filter;
+
+	$wp_filter['all']->do_all_hook( $args );
+}
+
+function apply_filters( $tag, $value ) {
+	global $wp_filter, $wp_current_filter;
+
+	$args = array();
+
+	// Do 'all' actions first.
+	if ( isset($wp_filter['all']) ) {
+		$wp_current_filter[] = $tag;
+		$args = func_get_args();
+		PHP_call_all_hook($args);
+	}
+
+	if ( !isset($wp_filter[$tag]) ) {
+		if ( isset($wp_filter['all']) )
+			array_pop($wp_current_filter);
+		return $value;
+	}
+
+	if ( !isset($wp_filter['all']) )
+		$wp_current_filter[] = $tag;
+
+	if ( empty($args) )
+		$args = func_get_args();
+
+	// don't pass the tag name to WP_Hook
+	array_shift( $args );
+
+	$filtered = $wp_filter[ $tag ]->apply_filters( $value, $args );
+
+	array_pop( $wp_current_filter );
+
+	return $filtered;
+}
+
+
+function _cleanup_header_comment( $str ) {
+	return trim(preg_replace("/\s*(?:\*\/|\?>).*/", '', $str));
+}
+
+function PHP_get_file_data( $file, $default_headers, $context = '' ) {
+	// We don't need to write to the file, so just open for reading.
+	$fp = fopen( $file, 'r' );
+
+	// Pull only the first 8kiB of the file in.
+	$file_data = fread( $fp, 8192 );
+
+	// PHP will close file handle, but we are good citizens.
+	fclose( $fp );
+
+	// Make sure we catch CR-only line endings.
+	$file_data = str_replace( "\r", "\n", $file_data );
+
+	/**
+	 * Filters extra file headers by context.
+	 *
+	 * The dynamic portion of the hook name, `$context`, refers to
+	 * the context where extra headers might be loaded.
+	 *
+	 * @since 2.9.0
+	 *
+	 * @param array $extra_context_headers Empty array by default.
+	 */
+	if ( $context && $extra_headers = apply_filters( "extra_{$context}_headers", array() ) ) {
+		$extra_headers = array_combine( $extra_headers, $extra_headers ); // keys equal values
+		$all_headers = array_merge( $extra_headers, (array) $default_headers );
+	} else {
+		$all_headers = $default_headers;
+	}
+
+	foreach ( $all_headers as $field => $regex ) {
+		if ( preg_match( '/^[ \t\/*#@]*' . preg_quote( $regex, '/' ) . ':(.*)$/mi', $file_data, $match ) && $match[1] )
+			$all_headers[ $field ] = _cleanup_header_comment( $match[1] );
+		else
+			$all_headers[ $field ] = '';
+	}
+
+	return $all_headers;
+}
+
+function PHP_Data_Key_Plugin($data_key){
+	global $con;
+	$check = mysqli_query($con,"SELECT key_plugin from platform_media WHERE key_plugin = '$data_key'");
+	if (mysqli_num_rows($check) > 0) {
+		$data = false; // false
+	}else{
+		$data = true;
+	}
+	return $data;
+}
+
+function PHP_Data_Version_Plugin($data_key,$data_version,$comprobar = ''){
+	global $con;
+	$check = mysqli_query($con,"SELECT * from platform_media WHERE key_plugin = '$data_key'");
+	$sql_query = mysqli_fetch_array($check);
+	if ($sql_query['version'] > $data_version) {
+		// the version of this plugin is inferior to the current one
+		$data = false;
+	}else if($sql_query['version'] == $data_version){
+		// the version of this plugin is similar v1 == v1
+		$data = false;
+	}else{
+		// updated plugin version
+		$data = true;
+	}
+	
+	return $data;
+}
+
+function PHP_recurse_copy($src,$dst) { 
+    $dir = opendir($src); 
+    @mkdir($dst); 
+    while(false !== ( $file = readdir($dir)) ) { 
+        if (( $file != '.' ) && ( $file != '..' )) { 
+            if ( is_dir($src . '/' . $file) ) { 
+                PHP_recurse_copy($src . '/' . $file,$dst . '/' . $file); 
+            } 
+            else { 
+                copy($src . '/' . $file,$dst . '/' . $file); 
+            } 
+        } 
+    } 
+    closedir($dir); 
+} 
+
+ 
+?>
+<?php
+	require ("ConectarDtata.php");
+	
+	
+	$year = $_POST['año'];
+	
+	$enero = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=1 AND YEAR(look)='$year'"));
+	$febrero = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=2 AND YEAR(look)='$year'"));
+	$marzo = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=3 AND YEAR(look)='$year'"));
+	$abril = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=4 AND YEAR(look)='$year'"));
+	$mayo = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=5 AND YEAR(look)='$year'"));
+	$junio = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=6 AND YEAR(look)='$year'"));
+	$julio = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=7 AND YEAR(look)='$year'"));
+	$agosto = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=8 AND YEAR(look)='$year'"));
+	$septiembre = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=9 AND YEAR(look)='$year'"));
+	$octubre = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=10 AND YEAR(look)='$year'"));
+	$noviembre = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=11 AND YEAR(look)='$year'"));
+	$diciembre = mysqli_fetch_array(mysqli_query($con,"SELECT SUM(Visits) AS r FROM admin_graphics WHERE MONTH(look)=12 AND YEAR(look)='$year'"));
+	
+	$data = array(0 => round($enero['r'],1),
+				  1 => round($febrero['r'],1),
+				  2 => round($marzo['r'],1),
+				  3 => round($abril['r'],1),
+				  4 => round($mayo['r'],1),
+				  5 => round($junio['r'],1),
+				  6 => round($julio['r'],1),
+				  7 => round($agosto['r'],1),
+				  8 => round($septiembre['r'],1),
+				  9 => round($octubre['r'],1),
+				  10 => round($noviembre['r'],1),
+				  11 => round($diciembre['r'],1)
+				  );			 
+	echo json_encode($data);
+?>
+<?php 
+require ("ConectarDtata.php");
+require_once ("languages/$Languages_panel.php");
+	if (@$_COOKIE["auser"]!='') {
+
+		
+		$s = $_POST['report'];
+		$report_yes = $_POST['report_yes'];
+		if($report_yes){
+			$sql = "DELETE FROM report_link WHERE id='$report_yes'";
+			mysqli_query($con, $sql);
+		}else{
+			$sql = mysqli_query($con,"Select * From report_link WHERE platform = '$s' LIMIT 100");
+			echo '<p class="text_plugin_p">'.$lags60.'</p>';
+			if (mysqli_num_rows($sql) == 0){
+				$line = '
+							<p class="pp_jjs_link w_c_text_p">'.$lags61.'</p>
+						';
+				echo $line;
+				
+			}else{
+				while($data = mysqli_fetch_array($sql)) {
+					$line = '<div class="loader_data_link__no_'.$data['id'].' class_div_link_a">';
+					$line.= '<div class="class_div_link_a_2"><p class="name_reporte_link_a">'.$data["platform"].'</p><a target="_blank" href="'.$data['report_link'].'"><p class="class_p_link_a">'.$data['report_link'].'</p></a></div>';
+					$line.= '<p class="check_link loader_data_link_'.$data['id'].' click_a ba_link_re_a" data-id="'.$data['id'].'"><i class="icon_a_repo fas fa-check"></i></p>';
+					$line.= '</div>';
+					echo $line;	
+				}
+			}
+		}	
+	}else{
+		require ("sources/login.php");	
+	}					
+	
+?>
+
+<script type="text/javascript">
+//
+ 
+	//report link	
+         $('.check_link').on('click', function(){
+            var data_id = $(this).data('id');
+            $.ajax({
+                url: 'report.php',
+                type: 'POST',
+                data: {report: data_id},
+                success: function(data){
+                    $("#more_data").html(data);//$('#more-info').html(data.html);
+                }
+            });
+        });
+//
+	$('.click_a').on('click', function(){
+		var data_id = $(this).data('id');
+		$('.loader_data_link__no_'+data_id).hide();
+		$('.loader_data_link_'+data_id).show();
+		
+		$.ajax({
+			url: 'report.php',
+            type: 'POST',
+            data: {report_yes: data_id},
+            success: function(data){
+                $('.loader_data_link__no_'+data_id).hide();
+				$('.loader_data_link_'+data_id).show();
+			}
+		});
+    });	
+<?php 
+require ("ConectarDtata.php");
+require_once ("languages/$Languages_panel.php");
+	if (@$_COOKIE["auser"]!='') {
+
+		
+		$s = $_POST['search'];
+		$sql = mysqli_query($con,"Select * From user_data WHERE username LIKE '%$s%' ORDER BY userID DESC LIMIT 10");
+		echo '<p class="text_plugin_p">'.$lags60.'</p>';
+		if (mysqli_num_rows($sql) == 0){
+			$line = '<div class="without_complements">
+									
+									<p class="w_c_text_p">'.$lags61.'</p>
+								</div>
+						
+						';
+						echo $line;
+			
+		}else{
+			while($data = mysqli_fetch_array($sql)) {
+				$line = '<div class="background_wall_don">
+									<div class="class_actions_display">
+										<img class="wall_div_statistics_panel_img" src="./assets/image/i_web_1.png"></img>
+										<p class="text_action">
+											<span class="plugin_lits_name">'.$data["username"].'</span>
+											<span class="plugin_lits_data"><i class="plugin_lits_icon far  fa-clock"></i> '.$lags53.' | '.time_elapsed($data["time"]).'</span>';
+								if ($data["active"] == '1'){		
+						$line.= '			<span class="plugin_lits_version"><i class="plugin_lits_icon fas fa-check"></i> '.$lags52.'</span>';
+								}else{
+						$line.= '			<span class="plugin_lits_version"><i class="plugin_lits_icon fas fa-times"></i> '.$lags51.'</span>';
+								}
+						$line.= '		</p>
+										<div class="action_plugis_div">
+										<div class="lis_class_system">
+										 ';
+								 
+											
+									$line.= '<div id="'.$data["userID"].'" class="div_media_yes">
+												<a href="?action=user&id='.$data["userID"].'" class="" id='.$data["userID"].'>
+													<span>'.$lags54.'</span>
+												</a>
+											</div>
+											
+											';
+								
+									$line.=	' 
+											</div>
+											<p class="action_plugis_div_p"></p>
+												</div>
+											</div>	
+										</div>';
+						echo $line;	
+			}
+		}
+	}else{
+		require ("sources/login.php");	
+	}					
+<?php
+
+require ("ConectarDtata.php");
+
+if (@$_COOKIE["auser"]!='') {
+	function active_media ($data){
+		global $con;
+	 
+		$sqli = mysqli_query($con,"Select * From platform_media WHERE id=".$data."");
+
+		if (mysqli_num_rows($sqli) > 0){
+			$data = mysqli_fetch_array($sqli, MYSQLI_ASSOC);
+			
+			if($data["active"] > 0){
+				$data_return = '0';
+			}else{
+				$data_return = '1';
+			}
+		}
+		return $data_return;
+	}
+	//--
+	$data = mysqli_query($con,"Select * From platform_media WHERE id=".$_REQUEST['id']."");
+	$check_result = @mysqli_num_rows(@$data);
+				
+	if($check_result){
+		$sqli = "UPDATE platform_media SET active=".active_media($_REQUEST['id'])." WHERE id=".$_REQUEST['id']."";
+		@mysqli_query($con, $sqli);
+	}
+				
+}else{
+	require ("sources/login.php");	
+}			
+
+?>
